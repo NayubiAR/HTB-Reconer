@@ -29,7 +29,19 @@ import sys
 from pathlib import Path
 
 from core import logger
-from core.utils import validate_target, create_output_dir
+from core.banner import (
+    show_banner,
+    prompt_target,
+    prompt_profile,
+    prompt_yes_no,
+    show_scan_summary,
+)
+from core.utils import (
+    validate_target,
+    create_output_dir,
+    list_available_wordlists,
+    get_wordlist_info,
+)
 from core.parser import parse_nmap_xml
 from core.executor import ParallelExecutor
 from modules.nmap_scan import NmapModule
@@ -53,10 +65,17 @@ def parse_args():
         description="HTB Reconnaissance Framework (Parallel Edition)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    parser.add_argument("-t", "--target", help="IP address or hostname target")
     parser.add_argument(
-        "-t", "--target", required=True, help="IP address or hostname target"
+        "-w", "--wordlist", help="Custom wordlist untuk gobuster (override profile)"
     )
-    parser.add_argument("-w", "--wordlist", help="Custom wordlist untuk gobuster")
+    parser.add_argument(
+        "-p",
+        "--profile",
+        choices=["quick", "default", "large"],
+        default="default",
+        help="Wordlist profile: quick (<1m), default (~5m), large (20m+)",
+    )
     parser.add_argument(
         "-o", "--output", default="results", help="Base output directory"
     )
@@ -79,10 +98,27 @@ def parse_args():
         action="store_true",
         help="Skip background full port scan",
     )
+    parser.add_argument(
+        "--list-wordlists",
+        action="store_true",
+        help="Tampilkan semua wordlist yang tersedia di system, lalu exit",
+    )
+    parser.add_argument(
+        "--no-banner",
+        action="store_true",
+        help="Skip welcome banner",
+    )
+    parser.add_argument(
+        "--no-interactive",
+        action="store_true",
+        help="Disable interactive prompt (untuk automation/scripting)",
+    )
     return parser.parse_args()
 
 
-def schedule_stage2_modules(target, output_dir, open_ports, wordlist, workers):
+def schedule_stage2_modules(
+    target, output_dir, open_ports, wordlist, workers, profile="default"
+):
     """
     Stage 2: jadwalkan modul enumerasi berdasarkan port terbuka.
     Semua modul jalan paralel.
@@ -109,6 +145,7 @@ def schedule_stage2_modules(target, output_dir, open_ports, wordlist, workers):
                 func=module.run,
                 port=port_num,
                 wordlist=wordlist,
+                profile=profile,
             )
         else:
             executor.add_task(
@@ -133,6 +170,57 @@ def find_new_ports(initial_ports, full_ports):
 def main():
     args = parse_args()
 
+    # === Show banner (default ON, kecuali --no-banner) ===
+    if not args.no_banner:
+        show_banner()
+
+    # === Handler --list-wordlists (jalan tanpa target) ===
+    if args.list_wordlists:
+        logger.banner("WORDLIST AVAILABILITY CHECK")
+        available = list_available_wordlists()
+
+        if not available:
+            logger.error("Tidak ada wordlist yang ditemukan!")
+            logger.info("Install: sudo apt install seclists wordlists")
+            sys.exit(1)
+
+        logger.success(f"Ditemukan {len(available)} wordlist preset:\n")
+        for category, path in sorted(available.items()):
+            info = get_wordlist_info(path)
+            lines = info.get("lines", 0)
+            print(f"  [{category:20s}] {lines:>10,} lines  {path}")
+
+        from core.utils import WORDLISTS
+
+        missing = set(WORDLISTS.keys()) - set(available.keys())
+        if missing:
+            logger.warn(f"\nTidak ditemukan: {', '.join(sorted(missing))}")
+            logger.info("Install lebih banyak: sudo apt install seclists")
+        sys.exit(0)
+
+    # === INTERACTIVE MODE ===
+    # Aktif jika: tidak ada --target DAN tidak ada --no-interactive
+    is_interactive = not args.target and not args.no_interactive
+
+    if is_interactive:
+        # Prompt interaktif: target wajib, profile opsional
+        args.target = prompt_target()
+        args.profile = prompt_profile()
+
+        # Tanya full scan (default Yes)
+        args.no_full_scan = not prompt_yes_no(
+            "Aktifkan background full port scan (-p-)?",
+            default=True,
+        )
+
+    # === Validasi target ===
+    if not args.target:
+        logger.error(
+            "Argument -t/--target wajib diisi (kecuali pakai --list-wordlists)"
+        )
+        logger.info("Atau jalankan tanpa argumen untuk interactive mode")
+        sys.exit(1)
+
     if not validate_target(args.target):
         logger.error(f"Target tidak valid: {args.target}")
         sys.exit(1)
@@ -142,6 +230,19 @@ def main():
         args.output,
         use_timestamp=not args.no_timestamp,
     )
+
+    # === Show scan summary & konfirmasi (interactive only) ===
+    if is_interactive:
+        show_scan_summary(
+            target=args.target,
+            profile=args.profile,
+            full_scan=not args.no_full_scan,
+            output_dir=str(output_dir),
+        )
+        if not prompt_yes_no("Lanjutkan scan?", default=True):
+            logger.info("Dibatalkan oleh user")
+            sys.exit(0)
+
     logger.success(f"Output directory: {output_dir}")
 
     # === STAGE 1A: Fast Scan (foreground) ===
@@ -179,6 +280,7 @@ def main():
         open_ports,
         args.wordlist,
         args.workers,
+        args.profile,
     )
 
     # === STAGE 3: Wait Full Scan + Trigger Module Baru ===
@@ -208,6 +310,7 @@ def main():
                         new_ports,
                         args.wordlist,
                         args.workers,
+                        args.profile,
                     )
                 else:
                     logger.success("Tidak ada port baru di full scan")

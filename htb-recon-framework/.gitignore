@@ -1,0 +1,123 @@
+# ============================================================
+# HTB Recon Framework - .gitignore
+# ============================================================
+
+# === HASIL SCAN (PALING PENTING!) ===
+# Folder results berisi data sensitive: IP target, hasil enum,
+# credential yang ditemukan, dll. JANGAN PERNAH commit ke repo public.
+results/
+*.xml
+*.gnmap
+*.nmap
+
+# Output Gobuster/enum lainnya yang mungkin tercecer
+gobuster_*.txt
+gobuster_*.md
+nmap_*.txt
+nmap_*.xml
+enum4linux*.md
+smbclient_*.md
+
+# === CREDENTIAL & CONFIG SENSITIVE ===
+# Kalau nanti ada config dengan API key / VPN credential
+.env
+.env.local
+config.local.yaml
+credentials.txt
+*.ovpn
+*.key
+*.pem
+
+# === WORDLIST CUSTOM (OPSIONAL) ===
+# Wordlist custom kamu mungkin berisi info sensitive
+# (misal username pattern dari recon sebelumnya)
+wordlists/custom_*
+wordlists/private_*
+
+# === PYTHON ===
+# Bytecode cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribusi & build
+build/
+dist/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+ENV/
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+
+# Type checker cache
+.mypy_cache/
+.pyre/
+.ruff_cache/
+
+# === IDE & EDITOR ===
+# VS Code
+.vscode/
+*.code-workspace
+
+# PyCharm / IntelliJ
+.idea/
+*.iml
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Sublime
+*.sublime-project
+*.sublime-workspace
+
+# === OS-SPECIFIC ===
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# === LOGS & TEMP ===
+*.log
+*.tmp
+*.temp
+logs/
+tmp/
+
+# === DOCUMENTATION BUILD ===
+docs/_build/
+site/
+
+# === LOCAL NOTES (opsional) ===
+# Kalau kamu punya notes pribadi soal HTB box
+# (writeup draft, hint, dll), simpan di sini
+notes/
+TODO.local.md
+SCRATCH.md
