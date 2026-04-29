@@ -1,0 +1,24 @@
+# HTB Recon Framework - Python Dependencies
+# ============================================================
+#
+# Framework ini didesain ZERO-DEPENDENCY dari sisi Python.
+# Semua functionality hanya pakai Python standard library:
+#   - argparse, subprocess, pathlib (file & process)
+#   - xml.etree.ElementTree (parsing Nmap XML)
+#   - concurrent.futures (paralelisasi)
+#   - shutil, os, re (utility)
+#
+# Yang dibutuhkan adalah TOOL SISTEM (bukan Python package):
+# Install via apt di Kali Linux:
+#
+#   sudo apt install -y nmap gobuster smbclient enum4linux-ng seclists
+#
+# ============================================================
+# OPSIONAL: Future Enhancements
+# ============================================================
+# Uncomment kalau mau aktifkan fitur advanced:
+
+# rich>=13.0.0          # Untuk TUI dashboard yang lebih cantik
+# pyyaml>=6.0           # Untuk config file YAML
+# jinja2>=3.1.0         # Untuk HTML report generation
+# requests>=2.31.0      # Untuk API integration (Discord/Telegram notif)

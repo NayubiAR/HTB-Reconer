@@ -17,6 +17,7 @@ nmap_*.txt
 nmap_*.xml
 enum4linux*.md
 smbclient_*.md
+ftp_*.md
 
 # === CREDENTIAL & CONFIG SENSITIVE ===
 # Kalau nanti ada config dengan API key / VPN credential

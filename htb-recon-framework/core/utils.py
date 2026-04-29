@@ -2,7 +2,6 @@
 core/utils.py
 Helper functions yang dipakai di seluruh framework.
 """
-
 import shutil
 import os
 import re
@@ -35,30 +34,30 @@ def create_output_dir(
 ) -> Path:
     """
     Buat folder output terorganisir berdasarkan target.
-
+    
     Args:
         target: IP atau hostname (jadi nama folder utama).
         base_dir: Root folder results.
         use_timestamp: Jika True, buat subfolder dengan timestamp agar
                        scan sebelumnya tidak ter-overwrite.
-
+    
     Struktur hasil:
         use_timestamp=True  → results/10.10.11.100/20260418_153012/
         use_timestamp=False → results/10.10.11.100/
-
+    
     Return: Path object ke folder paling spesifik (tempat file disimpan).
     """
     target_dir = Path(base_dir) / target
     target_dir.mkdir(parents=True, exist_ok=True)
-
+    
     if not use_timestamp:
         return target_dir
-
+    
     # Format: YYYYMMDD_HHMMSS (sortable secara alfabetis)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = target_dir / timestamp
     run_dir.mkdir(parents=True, exist_ok=True)
-
+    
     # Buat/update symlink "latest" yang selalu menunjuk ke scan terbaru
     # Memudahkan akses: cd results/10.10.11.100/latest
     latest_link = target_dir / "latest"
@@ -70,7 +69,7 @@ def create_output_dir(
         # Symlink mungkin gagal di beberapa filesystem (misal FAT32 via USB)
         # Ini non-critical, jadi skip aja tanpa error
         pass
-
+    
     return run_dir
 
 
@@ -78,7 +77,7 @@ def get_default_wordlist() -> str:
     """
     Cari wordlist default untuk directory bruteforce.
     Mencoba urutan dari "balanced" → "fallback" → "minimal".
-
+    
     Strategi: pilih yang punya coverage bagus tapi tidak terlalu lambat.
     raft-medium adalah sweet spot untuk HTB (~30k entries).
     """
@@ -103,28 +102,33 @@ WORDLISTS = {
         "/usr/share/wordlists/dirb/common.txt",
         "/usr/share/seclists/Discovery/Web-Content/common.txt",
     ],
+    
     "dir_default": [
         # ~30k entries, ~5 menit. Sweet spot untuk HTB.
         "/usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt",
         "/usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt",
         "/usr/share/wordlists/dirb/common.txt",  # fallback minimal
     ],
+    
     "dir_large": [
         # ~220k+ entries, 20-30 menit. Last resort kalau buntu.
         "/usr/share/seclists/Discovery/Web-Content/raft-large-directories.txt",
         "/usr/share/seclists/Discovery/Web-Content/directory-list-2.3-large.txt",
         "/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt",
     ],
+    
     # === FILE BRUTEFORCE (cari file specific, bukan direktori) ===
     "files_default": [
         "/usr/share/seclists/Discovery/Web-Content/raft-medium-files.txt",
         "/usr/share/seclists/Discovery/Web-Content/raft-small-files.txt",
     ],
+    
     # === API ENDPOINTS ===
     "api": [
         "/usr/share/seclists/Discovery/Web-Content/api/api-endpoints.txt",
         "/usr/share/seclists/Discovery/Web-Content/api/objects.txt",
     ],
+    
     # === CMS-SPECIFIC ===
     "wordpress": [
         "/usr/share/seclists/Discovery/Web-Content/CMS/wordpress.fuzz.txt",
@@ -136,6 +140,7 @@ WORDLISTS = {
     "drupal": [
         "/usr/share/seclists/Discovery/Web-Content/CMS/Drupal.txt",
     ],
+    
     # === SUBDOMAIN BRUTEFORCE (untuk Gobuster dns mode) ===
     "subdomain_quick": [
         # 5k entries, cukup untuk HTB
@@ -151,11 +156,13 @@ WORDLISTS = {
         "/usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt",
         "/usr/share/seclists/Discovery/DNS/bitquark-subdomains-top100000.txt",
     ],
+    
     # === VHOST DISCOVERY ===
     "vhost": [
         "/usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt",
         "/usr/share/seclists/Discovery/DNS/namelist.txt",
     ],
+    
     # === USERNAMES (untuk SSH/SMB/login spray) ===
     "username_common": [
         "/usr/share/seclists/Usernames/top-usernames-shortlist.txt",
@@ -166,6 +173,7 @@ WORDLISTS = {
         "/usr/share/seclists/Usernames/xato-net-10-million-usernames-dup.txt",
         "/usr/share/seclists/Usernames/xato-net-10-million-usernames.txt",
     ],
+    
     # === PASSWORDS ===
     "password_common": [
         "/usr/share/seclists/Passwords/Common-Credentials/10-million-password-list-top-1000.txt",
@@ -179,16 +187,19 @@ WORDLISTS = {
         "/usr/share/wordlists/rockyou.txt",
         "/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt",
     ],
+    
     # === DEFAULT CREDENTIALS (router/IoT/admin panel) ===
     "default_creds": [
         "/usr/share/seclists/Passwords/Default-Credentials/default-passwords.txt",
         "/usr/share/seclists/Passwords/Common-Credentials/best1050.txt",
     ],
+    
     # === SNMP COMMUNITY STRINGS ===
     "snmp": [
         "/usr/share/seclists/Discovery/SNMP/common-snmp-community-strings.txt",
         "/usr/share/seclists/Miscellaneous/wireless/common-snmp-community-strings-onesixtyone.txt",
     ],
+    
     # === FILE EXTENSIONS UMUM ===
     "extensions_web": [
         "/usr/share/seclists/Discovery/Web-Content/web-extensions.txt",
@@ -210,12 +221,12 @@ def _find_first_existing(paths: list) -> str:
 def get_wordlist(category: str) -> str:
     """
     Ambil wordlist berdasarkan kategori dari WORDLISTS dictionary.
-
+    
     Usage:
         wl = get_wordlist("dir_default")     # untuk gobuster dir
         wl = get_wordlist("subdomain_quick") # untuk gobuster dns
         wl = get_wordlist("wordpress")       # untuk WP-specific scan
-
+    
     Returns:
         Path wordlist (str) atau None jika tidak ada satupun yang exists.
     """
@@ -228,7 +239,7 @@ def list_available_wordlists() -> dict:
     """
     Scan semua wordlist preset, return yang tersedia di system.
     Berguna untuk debugging: "wordlist apa saja yang ada di Kali saya?"
-
+    
     Returns:
         dict {category: path} hanya untuk yang exists.
     """
@@ -247,13 +258,13 @@ def get_wordlist_info(path: str) -> dict:
     """
     if not path or not os.path.isfile(path):
         return {"exists": False}
-
+    
     try:
         size = os.path.getsize(path)
         # Hitung baris efisien tanpa load semua ke RAM
         with open(path, "rb") as f:
             line_count = sum(1 for _ in f)
-
+        
         return {
             "exists": True,
             "path": path,

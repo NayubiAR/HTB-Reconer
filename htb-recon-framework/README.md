@@ -54,7 +54,7 @@ from modules.base_module import BaseModule
 class FtpEnumModule(BaseModule):
     tool_name = "ftp"
     module_name = "FTP Enumeration"
-    
+
     def run(self, **kwargs) -> bool:
         if not self.check_prerequisites():
             return False
