@@ -75,20 +75,31 @@ def create_output_dir(
 
 def get_default_wordlist() -> str:
     """
-<<<<<<< HEAD
     Cari wordlist default untuk directory bruteforce.
     Mencoba urutan dari "balanced" → "fallback" → "minimal".
     
     Strategi: pilih yang punya coverage bagus tapi tidak terlalu lambat.
     raft-medium adalah sweet spot untuk HTB (~30k entries).
-=======
-    Cari wordlist default di Kali Linux.
-    Fallback berurutan dari yang paling umum.
->>>>>>> f447ff96d9158e39a3275b4657dc25263e45d5c3
     """
-    candidates = [
+    return _find_first_existing(WORDLISTS["dir_default"])
+
+
+# ============================================================================
+# WORDLIST PRESETS
+# ============================================================================
+# Dictionary terpusat untuk semua wordlist yang dipakai framework.
+# Setiap key punya list path - akan dicari urut, yang pertama ada → dipakai.
+# Ini pattern "fallback chain" - kalau wordlist favorit tidak ada, pakai
+# alternatif terdekat tanpa error.
+#
+# Cara nambah wordlist: tinggal edit list ini, tidak perlu sentuh kode lain.
+# ============================================================================
+
+WORDLISTS = {
+    # === DIRECTORY BRUTEFORCE ===
+    "dir_quick": [
+        # ~4.6k entries, scan selesai <1 menit. Untuk recon awal.
         "/usr/share/wordlists/dirb/common.txt",
-<<<<<<< HEAD
         "/usr/share/seclists/Discovery/Web-Content/common.txt",
     ],
     
@@ -262,12 +273,3 @@ def get_wordlist_info(path: str) -> dict:
         }
     except Exception:
         return {"exists": False}
-=======
-        "/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt",
-        "/usr/share/seclists/Discovery/Web-Content/common.txt",
-    ]
-    for wl in candidates:
-        if os.path.isfile(wl):
-            return wl
-    return None
->>>>>>> f447ff96d9158e39a3275b4657dc25263e45d5c3
