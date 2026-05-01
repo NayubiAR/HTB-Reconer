@@ -47,6 +47,7 @@ from core.executor import ParallelExecutor
 from modules.nmap_scan import NmapModule
 from modules.nmap_full import NmapFullModule
 from modules.web_enum import WebEnumModule
+from modules.web_discovery import WebDiscoveryModule
 from modules.smb_enum import SmbEnumModule
 from modules.ftp_enum import FtpEnumModule
 
@@ -108,23 +109,53 @@ def parse_args():
         action="store_true",
         help="Disable interactive prompt (untuk automation/scripting)",
     )
+    parser.add_argument(
+        "--advanced-web",
+        action="store_true",
+        help="Pakai web discovery advanced (ffuf + auto-detect tech + filter)",
+    )
+    parser.add_argument(
+        "--web-modes",
+        default="dir",
+        help="Web discovery modes (comma-separated): dir,subdomain,vhost (default: dir)",
+    )
+    parser.add_argument(
+        "--domain",
+        help="Domain target (untuk subdomain/vhost mode, contoh: htb.local)",
+    )
     return parser.parse_args()
 
 
-def schedule_stage2_modules(target, output_dir, open_ports, wordlist, workers, profile="default"):
+def schedule_stage2_modules(
+    target, output_dir, open_ports, wordlist, workers,
+    profile="default", advanced_web=False, web_modes=None, domain=None,
+):
     """
     Stage 2: jadwalkan modul enumerasi berdasarkan port terbuka.
     Semua modul jalan paralel.
+    
+    Args:
+        advanced_web: True = pakai WebDiscoveryModule (ffuf + auto-detect)
+                      False = pakai WebEnumModule basic (gobuster only)
+        web_modes: List mode web discovery ['dir', 'subdomain', 'vhost']
+        domain: Domain untuk subdomain/vhost mode
     """
     executor = ParallelExecutor(max_workers=workers)
     executed_keys = set()
+    web_modes = web_modes or ["dir"]
+    
+    # Pilih modul web berdasarkan flag advanced
+    WebClass = WebDiscoveryModule if advanced_web else WebEnumModule
     
     for p in open_ports:
         port_num = p["port"]
         if port_num not in PORT_MODULE_MAP:
             continue
         
-        category, ModuleClass = PORT_MODULE_MAP[port_num]
+        category, DefaultModuleClass = PORT_MODULE_MAP[port_num]
+        # Override class web jika advanced
+        ModuleClass = WebClass if category == "web" else DefaultModuleClass
+        
         dedup_key = f"{category}_{port_num}" if category == "web" else category
         if dedup_key in executed_keys:
             continue
@@ -133,12 +164,20 @@ def schedule_stage2_modules(target, output_dir, open_ports, wordlist, workers, p
         module = ModuleClass(target, output_dir)
         
         if category == "web":
+            task_kwargs = {
+                "port": port_num,
+                "wordlist": wordlist,
+                "profile": profile,
+            }
+            # Hanya pass modes & domain jika pakai advanced module
+            if advanced_web:
+                task_kwargs["modes"] = web_modes
+                task_kwargs["domain"] = domain
+            
             executor.add_task(
                 name=f"{category}_{port_num}",
                 func=module.run,
-                port=port_num,
-                wordlist=wordlist,
-                profile=profile,
+                **task_kwargs,
             )
         else:
             executor.add_task(
@@ -204,6 +243,12 @@ def main():
             "Aktifkan background full port scan (-p-)?",
             default=True,
         )
+        
+        # Tanya advanced web discovery (BARU)
+        args.advanced_web = prompt_yes_no(
+            "Pakai Advanced Web Discovery? (ffuf + auto-detect tech + smart filter)",
+            default=True,
+        )
     
     # === Validasi target ===
     if not args.target:
@@ -262,9 +307,13 @@ def main():
     
     # === STAGE 2: Parallel Modules ===
     logger.banner("STAGE 2: PARALLEL ENUMERATION")
+    web_modes_list = [m.strip() for m in args.web_modes.split(",")] if args.web_modes else ["dir"]
     schedule_stage2_modules(
         args.target, output_dir, open_ports,
         args.wordlist, args.workers, args.profile,
+        advanced_web=args.advanced_web,
+        web_modes=web_modes_list,
+        domain=args.domain,
     )
     
     # === STAGE 3: Wait Full Scan + Trigger Module Baru ===
@@ -289,6 +338,9 @@ def main():
                     schedule_stage2_modules(
                         args.target, output_dir, new_ports,
                         args.wordlist, args.workers, args.profile,
+                        advanced_web=args.advanced_web,
+                        web_modes=web_modes_list,
+                        domain=args.domain,
                     )
                 else:
                     logger.success("Tidak ada port baru di full scan")
